@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CustomerStatus {
+  Lead
+  Active
+  Inactive
+}
+
+model Customer {
+  id            String         @id @default(uuid())
+
+  name          String
+  company       String
+  phone         String
+  email         String?
+  location      String?
+  status        CustomerStatus @default(Active)
+
+  projects      Int            @default(0)
+  businessValue Decimal        @default(0) @db.Decimal(15, 2)
+
+  gstin         String?
+  address       String?
+  state         String?
+  pincode       String?
+  contactPerson String?
+  notes         String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status])
+  @@index([company])
+  @@index([email])
+
+  @@map("customers")
+}
+
+enum ProjectStatus {
+  InProgress
+  Pending
+  Completed
+}
+
+model Project {
+  id            String         @id @default(uuid())
+
+  name          String
+  customer      String
+
+  site          String?
+  projectLead   String?
+
+  measuredArea  String?
+
+  targetDate    String?
+
+  progress      Int            @default(0)
+
+  value         Decimal        @default(0) @db.Decimal(15,2)
+
+  status        ProjectStatus  @default(InProgress)
+
+  notes         String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status])
+  @@index([customer])
+
+  @@map("projects")
+}

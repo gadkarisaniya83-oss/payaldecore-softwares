@@ -1,0 +1,614 @@
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Package,
+  Plus,
+  Search,
+  XCircle,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { AppShell } from "@/components/erp/AppShell";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/work-orders")({
+  head: () => ({
+    meta: [
+      { title: "Work Orders | Payal Decor ERP" },
+      {
+        name: "description",
+        content:
+          "Create and manage modular furniture work orders from approved sales orders.",
+      },
+    ],
+  }),
+  component: WorkOrders,
+});
+
+type WorkOrderStatus =
+  | "All"
+  | "Draft"
+  | "Approved"
+  | "In Production"
+  | "Completed"
+  | "Cancelled";
+
+type WorkOrder = {
+  no: string;
+  customer: string;
+  project: string;
+  product: string;
+  quantity: number;
+  startDate: string;
+  dueDate: string;
+  assignedTo: string;
+  notes?: string;
+  status: Exclude<WorkOrderStatus, "All">;
+};
+
+const initialWorkOrders: WorkOrder[] = [
+  {
+    no: "WO-26-001",
+    customer: "TechNova Pvt. Ltd.",
+    project: "Corporate Office - Mumbai",
+    product: "Modular Workstations",
+    quantity: 24,
+    startDate: "01 Sep 2026",
+    dueDate: "10 Sep 2026",
+    assignedTo: "Production Team A",
+    status: "In Production",
+  },
+  {
+    no: "WO-26-002",
+    customer: "Skyline Developers",
+    project: "IT Park - Bengaluru",
+    product: "Reception Counter",
+    quantity: 4,
+    startDate: "03 Sep 2026",
+    dueDate: "12 Sep 2026",
+    assignedTo: "Production Team B",
+    status: "Approved",
+  },
+];
+
+const STORAGE_KEY = "payal-work-orders";
+
+function WorkOrders() {
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+      try {
+        return JSON.parse(saved) as WorkOrder[];
+      } catch {
+        return initialWorkOrders;
+      }
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialWorkOrders));
+    return initialWorkOrders;
+  });
+
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<WorkOrderStatus>("All");
+  const [showForm, setShowForm] = useState(false);
+
+  const [form, setForm] = useState({
+    customer: "",
+    project: "",
+    product: "",
+    quantity: "",
+    startDate: "",
+    dueDate: "",
+    assignedTo: "",
+    notes: "",
+  });
+
+  const shown = useMemo(() => {
+    return workOrders.filter((order) => {
+      const matchesFilter =
+        filter === "All" || order.status === filter;
+
+      const text =
+        `${order.no} ${order.customer} ${order.project} ${order.product}`.toLowerCase();
+
+      return matchesFilter && text.includes(query.toLowerCase());
+    });
+  }, [workOrders, query, filter]);
+
+  const createWorkOrder = () => {
+    if (
+      !form.customer ||
+      !form.project ||
+      !form.product ||
+      !form.quantity
+    ) {
+      alert("Please fill Customer, Project, Product and Quantity.");
+      return;
+    }
+
+    const newNumber = `WO-26-${String(
+      workOrders.length + 1
+    ).padStart(3, "0")}`;
+
+    const newOrder: WorkOrder = {
+      no: newNumber,
+      customer: form.customer,
+      project: form.project,
+      product: form.product,
+      quantity: Number(form.quantity),
+      startDate: form.startDate || "-",
+      dueDate: form.dueDate || "-",
+      assignedTo: form.assignedTo || "Not Assigned",
+      notes: form.notes || "",
+      status: "Draft",
+    };
+
+    setWorkOrders((current) => {
+      const updated = [newOrder, ...current];
+
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setForm({
+      customer: "",
+      project: "",
+      product: "",
+      quantity: "",
+      startDate: "",
+      dueDate: "",
+      assignedTo: "",
+      notes: "",
+    });
+
+    setShowForm(false);
+  };
+
+  const updateStatus = (
+    no: string,
+    status: Exclude<WorkOrderStatus, "All">
+  ) => {
+    setWorkOrders((current) => {
+      const updated = current.map((order) =>
+        order.no === no
+          ? { ...order, status }
+          : order
+      );
+
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  };
+
+  return (
+    <AppShell title="Work Orders">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            Production execution control
+          </p>
+
+          <h2 className="text-2xl font-semibold">
+            Work Orders
+          </h2>
+        </div>
+
+        <Button onClick={() => setShowForm(true)}>
+          <Plus />
+          Create Work Order
+        </Button>
+      </div>
+
+      <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+        <Flow
+          label="Draft"
+          count={String(
+            workOrders.filter(
+              (o) => o.status === "Draft"
+            ).length
+          )}
+          icon={ClipboardList}
+        />
+
+        <Flow
+          label="Approved"
+          count={String(
+            workOrders.filter(
+              (o) => o.status === "Approved"
+            ).length
+          )}
+          icon={CheckCircle2}
+          active
+        />
+
+        <Flow
+          label="In Production"
+          count={String(
+            workOrders.filter(
+              (o) => o.status === "In Production"
+            ).length
+          )}
+          icon={Package}
+          active
+        />
+
+        <Flow
+          label="Completed"
+          count={String(
+            workOrders.filter(
+              (o) => o.status === "Completed"
+            ).length
+          )}
+          icon={CheckCircle2}
+        />
+      </div>
+
+      {showForm && (
+        <section className="mb-5 rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                New production instruction
+              </p>
+
+              <h3 className="text-xl font-semibold">
+                Create Work Order
+              </h3>
+            </div>
+
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg p-2 hover:bg-muted"
+            >
+              <XCircle className="size-5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field
+              label="Customer *"
+              value={form.customer}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  customer: value,
+                })
+              }
+              placeholder="Enter customer name"
+            />
+
+            <Field
+              label="Project / Site *"
+              value={form.project}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  project: value,
+                })
+              }
+              placeholder="Enter project or site"
+            />
+
+            <Field
+              label="Product / Work *"
+              value={form.product}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  product: value,
+                })
+              }
+              placeholder="Example: Modular Kitchen"
+            />
+
+            <Field
+              label="Quantity *"
+              type="number"
+              value={form.quantity}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  quantity: value,
+                })
+              }
+              placeholder="Enter quantity"
+            />
+
+            <Field
+              label="Start Date"
+              type="date"
+              value={form.startDate}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  startDate: value,
+                })
+              }
+            />
+
+            <Field
+              label="Expected Completion Date"
+              type="date"
+              value={form.dueDate}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  dueDate: value,
+                })
+              }
+            />
+
+            <Field
+              label="Assigned Team"
+              value={form.assignedTo}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  assignedTo: value,
+                })
+              }
+              placeholder="Production Team"
+            />
+
+            <Field
+              label="Notes"
+              value={form.notes}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  notes: value,
+                })
+              }
+              placeholder="Additional instructions"
+            />
+          </div>
+
+          <div className="mt-5 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button onClick={createWorkOrder}>
+              Create Work Order
+            </Button>
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="flex flex-wrap gap-2 border-b border-border p-4">
+          <div className="flex min-w-60 flex-1 items-center gap-2 rounded-lg border border-input px-3 py-2 text-sm">
+            <Search className="size-4 text-muted-foreground" />
+
+            <input
+              value={query}
+              onChange={(e) =>
+                setQuery(e.target.value)
+              }
+              placeholder="Search work order, customer or project..."
+              className="w-full bg-transparent outline-none"
+            />
+          </div>
+
+          {(
+            [
+              "All",
+              "Draft",
+              "Approved",
+              "In Production",
+              "Completed",
+              "Cancelled",
+            ] as WorkOrderStatus[]
+          ).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={cn(
+                "rounded-lg border px-3 py-2 text-xs",
+                filter === status
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              )}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <th className="px-5 py-3">
+                  Work Order
+                </th>
+                <th className="py-3">
+                  Customer / Project
+                </th>
+                <th className="py-3">
+                  Product / Work
+                </th>
+                <th className="py-3 text-right">
+                  Qty
+                </th>
+                <th className="py-3">
+                  Due Date
+                </th>
+                <th className="py-3">
+                  Assigned Team
+                </th>
+                <th className="py-3">
+                  Status
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {shown.map((order) => (
+                <tr
+                  key={order.no}
+                  className="border-b border-border last:border-0"
+                >
+                  <td className="px-5 py-3">
+                    <p className="font-medium">
+                      {order.no}
+                    </p>
+
+                    <p className="text-xs text-muted-foreground">
+                      Production instruction
+                    </p>
+                  </td>
+
+                  <td className="py-3">
+                    <p>{order.customer}</p>
+
+                    <p className="text-xs text-muted-foreground">
+                      {order.project}
+                    </p>
+                  </td>
+
+                  <td className="py-3">
+                    {order.product}
+                  </td>
+
+                  <td className="py-3 text-right">
+                    {order.quantity}
+                  </td>
+
+                  <td className="py-3 text-muted-foreground">
+                    {order.dueDate}
+                  </td>
+
+                  <td className="py-3">
+                    {order.assignedTo}
+                  </td>
+
+                  <td className="py-3">
+                    <select
+                      value={order.status}
+                      onChange={(e) =>
+                        updateStatus(
+                          order.no,
+                          e.target.value as Exclude<
+                            WorkOrderStatus,
+                            "All"
+                          >
+                        )
+                      }
+                      className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                    >
+                      <option>Draft</option>
+                      <option>Approved</option>
+                      <option>In Production</option>
+                      <option>Completed</option>
+                      <option>Cancelled</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+
+              {shown.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="py-10 text-center text-muted-foreground"
+                  >
+                    No work orders found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <Clock3 className="size-4" />
+        New work orders are created in Draft status.
+      </div>
+    </AppShell>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <label className="space-y-1.5">
+      <span className="text-sm font-medium">
+        {label}
+      </span>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) =>
+          onChange(e.target.value)
+        }
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+      />
+    </label>
+  );
+}
+
+function Flow({
+  label,
+  count,
+  icon: Icon,
+  active,
+}: {
+  label: string;
+  count: string;
+  icon: typeof ClipboardList;
+  active?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+      <span
+        className={cn(
+          "grid size-10 place-items-center rounded-lg",
+          active
+            ? "bg-primary/10 text-primary"
+            : "bg-muted text-muted-foreground"
+        )}
+      >
+        <Icon className="size-5" />
+      </span>
+
+      <div>
+        <p className="text-xs text-muted-foreground">
+          {label}
+        </p>
+
+        <p className="tabular text-xl font-semibold">
+          {count}
+        </p>
+      </div>
+    </div>
+  );
+}
