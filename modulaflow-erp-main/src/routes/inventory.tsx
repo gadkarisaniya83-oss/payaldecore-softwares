@@ -131,6 +131,7 @@ const SEED_PRODUCTS: Product[] = GROUPS.flatMap((g) =>
 
 const PRODUCTS_KEY = "payal-erp-products";
 const OLD_IMAGE_KEY = "payal-erp-product-images"; // earlier version (images by Sr.No)
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 
 const EMPTY_FORM = {
   srNo: "",
@@ -391,35 +392,100 @@ function Inventory() {
   const formImageRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
-  // ---- load saved products (client only) ----
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PRODUCTS_KEY);
-      let list: Product[] = raw ? JSON.parse(raw) : SEED_PRODUCTS;
+    // ---- products are stored in the shared database (server) ----
+  const syncedRef = useRef<Map<string, string>>(new Map());
+  const [serverOk, setServerOk] = useState(false);
 
-      // bring over images uploaded in the earlier version
-      const oldRaw = localStorage.getItem(OLD_IMAGE_KEY);
-      if (oldRaw) {
-        const old: Record<string, string> = JSON.parse(oldRaw);
-        list = list.map((p) => (!p.image && old[p.srNo] ? { ...p, image: old[p.srNo] } : p));
+  // load: server list; browser's old saved list is merged in once (migration)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let local: Product[] | null = null;
+      try {
+        const raw = localStorage.getItem(PRODUCTS_KEY);
+        local = raw ? JSON.parse(raw) : null;
+        const oldRaw = localStorage.getItem(OLD_IMAGE_KEY);
+        if (local && oldRaw) {
+          const old: Record<string, string> = JSON.parse(oldRaw);
+          local = local.map((p) => (!p.image && old[p.srNo] ? { ...p, image: old[p.srNo] } : p));
+        }
+      } catch {
+        /* ignore */
       }
-      setProducts(list);
-    } catch {
-      /* ignore */
-    }
-    setLoaded(true);
+
+      try {
+        const res = await fetch(`${API_URL}/inventory-products`);
+        if (!res.ok) throw new Error("load failed");
+        const server: Product[] = await res.json();
+        if (cancelled) return;
+
+        const byNo = new Map(server.map((p) => [p.srNo, p]));
+        if (server.length === 0) {
+          // database empty: first time, push this browser's list (or the seed list)
+          setProducts(local ?? SEED_PRODUCTS);
+        } else {
+          for (const p of local ?? []) {
+            const s = byNo.get(p.srNo);
+            if (!s) byNo.set(p.srNo, p);
+            else if (!s.image && p.image) byNo.set(p.srNo, { ...s, image: p.image });
+          }
+          setProducts([...byNo.values()]);
+        }
+        syncedRef.current = new Map(server.map((p) => [p.srNo, JSON.stringify(p)]));
+        setServerOk(true);
+      } catch {
+        if (cancelled) return;
+        setProducts(local ?? SEED_PRODUCTS);
+        setError("Server shi connect hot nahi. Thoda vel thamba ani page refresh kara.");
+      }
+      if (!cancelled) setLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // ---- persist on every change (after first load) ----
+  // save: send only the changed / deleted rows to the server
   useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-    } catch {
-      setError("Browser storage full - lahan images vapra kinva kahi images kadha.");
-    }
-  }, [products, loaded]);
+    if (!loaded || !serverOk) return;
 
+    const current = new Map(products.map((p) => [p.srNo, JSON.stringify(p)]));
+    const upserts = products.filter(
+      (p) => syncedRef.current.get(p.srNo) !== current.get(p.srNo),
+    );
+    const deletes = [...syncedRef.current.keys()].filter((k) => !current.has(k));
+
+    const clearLocal = () => {
+      try {
+        localStorage.removeItem(PRODUCTS_KEY);
+        localStorage.removeItem(OLD_IMAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    if (upserts.length === 0 && deletes.length === 0) {
+      clearLocal();
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/inventory-products/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ upserts, deletes }),
+        });
+        if (!res.ok) throw new Error("save failed");
+        syncedRef.current = current;
+        clearLocal();
+      } catch {
+        setError("Save jhale nahi (server). Internet tapasa ani punha prayatna kara.");
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [products, loaded, serverOk]);
+    
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category).filter(Boolean))],
     [products],

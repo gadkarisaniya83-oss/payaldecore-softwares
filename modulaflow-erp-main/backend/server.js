@@ -34,7 +34,7 @@ console.log('🔥 Firebase Admin initialized');
 const PORT = process.env.PORT || 5001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is missing in .env');
@@ -4255,6 +4255,66 @@ app.delete("/api/production/:id", async (req, res) => {
     });
   }
 });
+/* ===== INVENTORY PRODUCTS API ===== */
+app.get("/api/inventory-products", async (req, res) => {
+  try {
+    const rows = await prisma.inventoryProduct.findMany();
+    res.json(
+      rows.map((r) => ({
+        srNo: r.srNo,
+        itemName: r.itemName,
+        dimension: r.dimension,
+        price: r.price,
+        category: r.category,
+        image: r.image || "",
+      }))
+    );
+  } catch (error) {
+    console.error("Get inventory products error:", error);
+    res.status(500).json({ message: "Failed to load inventory products" });
+  }
+});
+
+app.post("/api/inventory-products/sync", async (req, res) => {
+  try {
+    const upserts = Array.isArray(req.body.upserts) ? req.body.upserts : [];
+    const deletes = Array.isArray(req.body.deletes) ? req.body.deletes : [];
+    const ops = [];
+
+    for (const p of upserts) {
+      if (!p || !p.srNo) continue;
+      const data = {
+        itemName: String(p.itemName ?? ""),
+        dimension: String(p.dimension ?? ""),
+        price: Number(p.price) || 0,
+        category: String(p.category ?? ""),
+        image: p.image ? String(p.image) : null,
+      };
+      ops.push(
+        prisma.inventoryProduct.upsert({
+          where: { srNo: String(p.srNo) },
+          update: data,
+          create: { srNo: String(p.srNo), ...data },
+        })
+      );
+    }
+
+    if (deletes.length) {
+      ops.push(
+        prisma.inventoryProduct.deleteMany({
+          where: { srNo: { in: deletes.map(String) } },
+        })
+      );
+    }
+
+    await prisma.$transaction(ops);
+    res.json({ ok: true, upserted: upserts.length, deleted: deletes.length });
+  } catch (error) {
+    console.error("Sync inventory products error:", error);
+    res.status(500).json({ message: "Failed to save inventory products" });
+  }
+});
+/* ===== END INVENTORY PRODUCTS API ===== */
 
 /* ===== END PRODUCTION MODULE APIs ===== */
 
