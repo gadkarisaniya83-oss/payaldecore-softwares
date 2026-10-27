@@ -14,17 +14,17 @@ enum CustomerStatus {
 }
 
 model Customer {
-  id            String         @id @default(uuid())
+  id String @id @default(uuid())
 
-  name          String
-  company       String
-  phone         String
-  email         String?
-  location      String?
-  status        CustomerStatus @default(Active)
+  name     String
+  company  String
+  phone    String
+  email    String?
+  location String?
+  status   CustomerStatus @default(Active)
 
-  projects      Int            @default(0)
-  businessValue Decimal        @default(0) @db.Decimal(15, 2)
+  projects      Int     @default(0)
+  businessValue Decimal @default(0) @db.Decimal(15, 2)
 
   gstin         String?
   address       String?
@@ -33,13 +33,17 @@ model Customer {
   contactPerson String?
   notes         String?
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leadEnquiries    LeadEnquiry[]
+  siteMeasurements SiteMeasurement[]
+
+  estimations Estimation[] @relation("EstimationCustomer")
 
   @@index([status])
   @@index([company])
   @@index([email])
-
   @@map("customers")
 }
 
@@ -49,32 +53,276 @@ enum ProjectStatus {
   Completed
 }
 
-model Project {
-  id            String         @id @default(uuid())
+enum WorkOrderStatus {
+  Draft
+  Approved
+  InProduction
+  Completed
+  Cancelled
+}
 
-  name          String
-  customer      String
+enum LeadEnquiryStatus {
+  New
+  Contacted
+  Qualified
+  Converted
+  Lost
+}
 
-  site          String?
-  projectLead   String?
+model LeadEnquiry {
+  id           Int       @id @default(autoincrement())
+  customerName String
+  companyName  String    @default("")
+  phone        String
+  email        String    @default("")
+  source       String    @default("Direct")
+  requirement  String
+  budget       String    @default("")
+  followUpDate DateTime? @db.Date
+  priority     String    @default("Medium")
+  status       String    @default("New")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  measuredArea  String?
+  customerId       String?           @db.VarChar(255)
+  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  siteMeasurements SiteMeasurement[]
 
-  targetDate    String?
+  estimations Estimation[] @relation("EstimationLead")
 
-  progress      Int            @default(0)
-
-  value         Decimal        @default(0) @db.Decimal(15,2)
-
-  status        ProjectStatus  @default(InProgress)
-
-  notes         String?
-
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
+  @@index([customerId])
   @@index([status])
-  @@index([customer])
+  @@index([customerName])
+}
 
-  @@map("projects")
+model SiteMeasurement {
+  id            String   @id @default(cuid())
+  visitId       String   @unique
+  customerName  String
+  leadId        String?
+  projectName   String?
+  siteAddress   String
+  visitDate     DateTime
+  assignedTo    String?
+  roomType      String
+  furnitureType String?
+  lengthMm      Float?
+  widthMm       Float?
+  heightMm      Float?
+  unit          String   @default("mm")
+  customerNotes String?
+  remarks       String?
+  status        String   @default("Scheduled")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  leadEnquiryId Int?
+  leadEnquiry   LeadEnquiry? @relation(fields: [leadEnquiryId], references: [id], onDelete: SetNull)
+
+  estimations Estimation[] @relation("EstimationSiteMeasurement")
+
+  @@index([customerId])
+  @@index([leadEnquiryId])
+  @@index([customerName])
+  @@index([visitDate])
+  @@index([status])
+}
+
+model Estimation {
+  id               String @id @default(uuid())
+  estimationNumber String @unique
+
+  customerId        String
+  leadEnquiryId     Int
+  siteMeasurementId String
+
+  projectName String?
+  notes       String?
+
+  lengthMm       Float
+  widthMm        Float
+  unit           String @default("mm")
+  quantity       Int    @default(1)
+  wastagePercent Float  @default(0)
+  ratePerSqft    Float  @default(0)
+
+  costPerUnit    Float  @default(0)
+  pricingMethod  String @default("markup")
+  pricingPercent Float  @default(0)
+
+  edges             Json
+  bomItems          Json
+  derivedQuantities Json
+
+  baseAmount          Float @default(0)
+  sellingPricePerUnit Float @default(0)
+  totalSellingPrice   Float @default(0)
+
+  status    String   @default("Draft")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer        Customer        @relation("EstimationCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  leadEnquiry     LeadEnquiry     @relation("EstimationLead", fields: [leadEnquiryId], references: [id], onDelete: Restrict)
+  siteMeasurement SiteMeasurement @relation("EstimationSiteMeasurement", fields: [siteMeasurementId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([leadEnquiryId])
+  @@index([siteMeasurementId])
+  @@index([createdAt])
+}
+
+model Quotation {
+  id            String    @id @default(uuid())
+  quotationNo   String    @unique
+  customerId    String
+  customerName  String
+  projectName   String
+  estimateId    String?
+  quotationDate DateTime
+  validUntil    DateTime?
+  status        String    @default("Draft")
+  gstRate       Decimal   @default(18) @db.Decimal(5, 2)
+  notes         String?   @db.Text
+  subtotal      Decimal   @default(0) @db.Decimal(15, 2)
+  gstAmount     Decimal   @default(0) @db.Decimal(15, 2)
+  grandTotal    Decimal   @default(0) @db.Decimal(15, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  items QuotationItem[]
+
+  @@index([customerId])
+  @@index([estimateId])
+  @@index([status])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String   @id @default(uuid())
+  quotationId String
+  itemName    String
+  description String?  @db.Text
+  quantity    Decimal  @db.Decimal(15, 3)
+  unit        String   @default("NOS")
+  rate        Decimal  @db.Decimal(15, 2)
+  amount      Decimal  @db.Decimal(15, 2)
+  createdAt   DateTime @default(now())
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([quotationId])
+  @@map("quotation_items")
+}
+
+model SalesOrder {
+  id           String    @id @default(uuid())
+  orderNo      String    @unique
+  customerId   String?
+  customerName String
+  projectName  String
+  quotationId  String?
+  orderDate    DateTime  @default(now())
+  deliveryDate DateTime?
+  status       String    @default("Approved")
+  progress     Int       @default(10)
+  totalAmount  Decimal   @default(0) @db.Decimal(15, 2)
+  items        Json
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([quotationId])
+  @@index([status])
+  @@map("sales_orders")
+}
+
+model WorkOrder {
+  id          String @id @default(cuid())
+  workOrderNo String @unique
+
+  salesOrderId String?
+  customerId   String?
+
+  customerName String
+  projectName  String
+  productWork  String
+
+  quantity Float
+  unit     String @default("Nos")
+
+  dueDate      DateTime?
+  assignedTeam String?
+  priority     String    @default("Medium")
+  status       String    @default("Draft")
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bom {
+  id          String  @id @default(uuid())
+  bomNo       String  @unique
+  bomName     String
+  project     String?
+  workOrderNo String
+  status      String  @default("Draft")
+  notes       String? @db.Text
+
+  materials BomMaterial[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  ProductionJob ProductionJob[]
+
+  @@index([workOrderNo])
+  @@index([status])
+  @@map("boms")
+}
+
+model BomMaterial {
+  id           String @id @default(uuid())
+  bomId        String
+  materialCode String @default("")
+  materialName String
+  requiredQty  Float
+  availableQty Float  @default(0)
+  unit         String @default("Pieces")
+  unitCost     Float  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bom Bom @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  @@index([bomId])
+  @@index([materialCode])
+  @@map("bom_materials")
+}
+
+model ProductionJob {
+  id           String    @id @default(cuid())
+  workOrderNo  String    
+  productName  String
+  quantity     Int       @default(1)
+  currentStage String    @default("Pending")
+  department   String    @default("Production")
+  deadline     DateTime?
+  notes        String?
+
+  bomId String?
+  bom   Bom?    @relation(fields: [bomId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+@@index([workOrderNo])
+  @@index([currentStage])
+  @@index([deadline])
+  @@index([bomId])
 }

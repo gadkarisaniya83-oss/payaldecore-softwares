@@ -51,7 +51,7 @@ function ProductMaster() {
   };
 
   return (
-    <AppShell>
+    <AppShell title="master products">
       <div className="p-6">
         <div className="flex items-center justify-between">
           <div>

@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
+  UserRoundPlus,
   FolderKanban,
   Calculator,
   FileText,
@@ -38,11 +39,13 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/" },
   { label: "CRM", icon: Users, to: "/crm" },
-  { label: "Projects", icon: FolderKanban, to: "/projects" },
+  { label: "Lead / Enquiry", icon: UserRoundPlus, to: "/lead-enquiry" },
+  { label: "Site Visit / Measurement", icon: UserRoundPlus, to: "/site-visit-measurement" },
   { label: "Estimation & BOQ", icon: Calculator, to: "/estimation" },
   { label: "Quotations", icon: FileText, to: "/quotations" },
   { label: "Sales Orders", icon: ShoppingCart, to: "/sales-orders" },
   { label: "Work Orders", icon: ClipboardList ,to:"/work-orders"},
+  { label: "BOM & Material Requirement", icon: Boxes, to: "/bom-material-requirement"},
   { label: "Production", icon: Factory, to: "/production" },
   { label: "Inventory", icon: Boxes, to: "/inventory" },
   { label: "Purchase", icon: ShoppingBag, to: "/purchase" },
@@ -55,8 +58,8 @@ const NAV: NavItem[] = [
   { label: "Reports", icon: BarChart3, to: "/reports" },
   { label: "Masters", icon: Boxes, to: "/masters" },
   { label: "Admin", icon: Settings, to: "/admin" },
+  { label: "Projects", icon: FolderKanban, to: "/projects" },
 ];
-
 function Sidebar({ open }: { open: boolean }) {
   const pathname = useRouterState({
     select: (s) => s.location.pathname,

@@ -1,2 +1,8 @@
 ﻿backend/.env
 backend/firebase-service-account.json
+node_modules/
+dist/
+.output/
+.wrangler/
+.tanstack/
+.env

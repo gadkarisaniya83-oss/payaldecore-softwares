@@ -1,614 +1,765 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  CheckCircle2,
-  ClipboardList,
-  Clock3,
-  Package,
-  Plus,
-  Search,
-  XCircle,
+  Plus, Search, Pencil, Trash2, X, RefreshCw, Eye,
 } from "lucide-react";
-import { useMemo, useState } from "react";
 import { AppShell } from "@/components/erp/AppShell";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/work-orders")({
-  head: () => ({
-    meta: [
-      { title: "Work Orders | Payal Decor ERP" },
-      {
-        name: "description",
-        content:
-          "Create and manage modular furniture work orders from approved sales orders.",
-      },
-    ],
-  }),
-  component: WorkOrders,
+  component: WorkOrdersPage,
 });
 
-type WorkOrderStatus =
-  | "All"
-  | "Draft"
-  | "Approved"
-  | "In Production"
-  | "Completed"
-  | "Cancelled";
+const API = (
+  import.meta.env.VITE_API_URL || "http://localhost:5001/api"
+).replace(/\/+$/, "");
 
-type WorkOrder = {
-  no: string;
-  customer: string;
-  project: string;
-  product: string;
+const STATUSES = [
+  "Draft", "Approved", "In Production", "Completed", "Cancelled",
+];
+const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+
+interface WorkOrder {
+  id: string;
+  workOrderNo: string;
+  salesOrderId?: string | null;
+  customerId?: string | null;
+  customerName: string;
+  projectName: string;
+  productWork: string;
   quantity: number;
-  startDate: string;
-  dueDate: string;
-  assignedTo: string;
-  notes?: string;
-  status: Exclude<WorkOrderStatus, "All">;
+  unit: string;
+  dueDate?: string | null;
+  assignedTeam?: string | null;
+  priority: string;
+  status: string;
+  notes?: string | null;
+}
+
+interface SalesOrder {
+  id: string;
+  orderNo?: string;
+  salesOrderNo?: string;
+  customerId?: string | null;
+  customerName?: string;
+  projectName?: string;
+  status?: string;
+}
+
+const blank = {
+  salesOrderId: "",
+  customerId: "",
+  customerName: "",
+  projectName: "",
+  productWork: "",
+  quantity: "1",
+  unit: "Nos",
+  dueDate: "",
+  assignedTeam: "",
+  priority: "Medium",
+  status: "Draft",
+  notes: "",
 };
 
-const initialWorkOrders: WorkOrder[] = [
-  {
-    no: "WO-26-001",
-    customer: "TechNova Pvt. Ltd.",
-    project: "Corporate Office - Mumbai",
-    product: "Modular Workstations",
-    quantity: 24,
-    startDate: "01 Sep 2026",
-    dueDate: "10 Sep 2026",
-    assignedTo: "Production Team A",
-    status: "In Production",
-  },
-  {
-    no: "WO-26-002",
-    customer: "Skyline Developers",
-    project: "IT Park - Bengaluru",
-    product: "Reception Counter",
-    quantity: 4,
-    startDate: "03 Sep 2026",
-    dueDate: "12 Sep 2026",
-    assignedTo: "Production Team B",
-    status: "Approved",
-  },
-];
+async function responseData(response: Response) {
+  const data = await response.json().catch(() => ({}));
 
-const STORAGE_KEY = "payal-work-orders";
+  if (!response.ok || data.success === false) {
+    throw new Error(
+      data.message || `Request failed (${response.status})`
+    );
+  }
 
-function WorkOrders() {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+  return data;
+}
 
-    if (saved) {
-      try {
-        return JSON.parse(saved) as WorkOrder[];
-      } catch {
-        return initialWorkOrders;
-      }
-    }
+function arrayFrom<T>(data: any, keys: string[]): T[] {
+  if (Array.isArray(data)) return data;
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialWorkOrders));
-    return initialWorkOrders;
-  });
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
 
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<WorkOrderStatus>("All");
+  return [];
+}
+
+function cleanWorkOrder(row: any): WorkOrder {
+  return {
+    ...row,
+    id: String(row.id),
+    workOrderNo: row.workOrderNo || "WO",
+    salesOrderId: row.salesOrderId ?? null,
+    customerId: row.customerId ?? row.customer?.id ?? null,
+    customerName: row.customerName ?? row.customer?.name ?? "",
+    projectName: row.projectName ?? "",
+    productWork: row.productWork ?? "",
+    quantity: Number(row.quantity ?? 1),
+    unit: row.unit ?? "Nos",
+    dueDate: row.dueDate
+      ? String(row.dueDate).slice(0, 10)
+      : "",
+    assignedTeam: row.assignedTeam ?? "",
+    priority: row.priority ?? "Medium",
+    status: row.status ?? "Draft",
+    notes: row.notes ?? "",
+  };
+}
+
+function cleanSalesOrder(row: any): SalesOrder {
+  return {
+    ...row,
+    id: String(row.id),
+    orderNo: row.orderNo ?? row.salesOrderNo ?? "",
+    customerId:
+      row.customerId ?? row.customer?.id ?? null,
+    customerName:
+      row.customerName ?? row.customer?.name ?? "",
+    projectName: row.projectName ?? "",
+    status: row.status ?? "",
+  };
+}
+function WorkOrdersPage() {
+  const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [form, setForm] = useState({ ...blank });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<WorkOrder | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [form, setForm] = useState({
-    customer: "",
-    project: "",
-    product: "",
-    quantity: "",
-    startDate: "",
-    dueDate: "",
-    assignedTo: "",
-    notes: "",
-  });
+  const input =
+    "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-  const shown = useMemo(() => {
-    return workOrders.filter((order) => {
-      const matchesFilter =
-        filter === "All" || order.status === filter;
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
 
-      const text =
-        `${order.no} ${order.customer} ${order.project} ${order.product}`.toLowerCase();
+    try {
+      const data = await responseData(
+        await fetch(`${API}/work-orders`)
+      );
 
-      return matchesFilter && text.includes(query.toLowerCase());
+      setOrders(
+        arrayFrom<any>(data, ["workOrders", "data"])
+          .map(cleanWorkOrder)
+      );
+      setError("");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not load Work Orders."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadSalesOrders = useCallback(async () => {
+    try {
+      const data = await responseData(
+        await fetch(`${API}/sales-orders`)
+      );
+
+      setSalesOrders(
+        arrayFrom<any>(data, ["salesOrders", "data"])
+          .map(cleanSalesOrder)
+      );
+    } catch (e) {
+      setSalesOrders([]);
+      setError(
+        e instanceof Error
+          ? `Sales Order dropdown: ${e.message}`
+          : "Could not load Sales Orders."
+      );
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    await Promise.all([loadOrders(), loadSalesOrders()]);
+  }, [loadOrders, loadSalesOrders]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    return orders.filter((o) => {
+      const textMatch = [
+        o.workOrderNo,
+        o.customerName,
+        o.projectName,
+        o.productWork,
+        o.assignedTeam,
+        o.status,
+      ].some((v) => String(v ?? "").toLowerCase().includes(q));
+
+      return (
+        textMatch &&
+        (statusFilter === "All" || o.status === statusFilter)
+      );
     });
-  }, [workOrders, query, filter]);
+  }, [orders, search, statusFilter]);
 
-  const createWorkOrder = () => {
-    if (
-      !form.customer ||
-      !form.project ||
-      !form.product ||
-      !form.quantity
-    ) {
-      alert("Please fill Customer, Project, Product and Quantity.");
+  function field(name: keyof typeof blank, value: string) {
+    setForm((old) => ({ ...old, [name]: value }));
+  }
+
+  function chooseOrder(id: string) {
+    const so = salesOrders.find((x) => x.id === id);
+
+    if (!id || !so) {
+      setForm((old) => ({
+        ...old,
+        salesOrderId: "",
+        customerId: "",
+        customerName: "",
+        projectName: "",
+      }));
       return;
     }
 
-    const newNumber = `WO-26-${String(
-      workOrders.length + 1
-    ).padStart(3, "0")}`;
+    setForm((old) => ({
+      ...old,
+      salesOrderId: id,
+      customerId: String(so.customerId ?? ""),
+      customerName: so.customerName ?? "",
+      projectName: so.projectName ?? "",
+    }));
 
-    const newOrder: WorkOrder = {
-      no: newNumber,
-      customer: form.customer,
-      project: form.project,
-      product: form.product,
-      quantity: Number(form.quantity),
-      startDate: form.startDate || "-",
-      dueDate: form.dueDate || "-",
-      assignedTo: form.assignedTo || "Not Assigned",
-      notes: form.notes || "",
-      status: "Draft",
-    };
+    setError("");
+  }
 
-    setWorkOrders((current) => {
-      const updated = [newOrder, ...current];
+  function createNew() {
+    setEditingId(null);
+    setViewing(null);
+    setForm({ ...blank });
+    setError("");
+    setSuccess("");
+    setShowForm(true);
+  }
 
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
+  function edit(item: WorkOrder) {
+    setEditingId(item.id);
+    setViewing(null);
 
     setForm({
-      customer: "",
-      project: "",
-      product: "",
-      quantity: "",
-      startDate: "",
-      dueDate: "",
-      assignedTo: "",
-      notes: "",
+      salesOrderId: item.salesOrderId ?? "",
+      customerId: item.customerId ?? "",
+      customerName: item.customerName,
+      projectName: item.projectName,
+      productWork: item.productWork,
+      quantity: String(item.quantity),
+      unit: item.unit,
+      dueDate: item.dueDate ?? "",
+      assignedTeam: item.assignedTeam ?? "",
+      priority: item.priority,
+      status: item.status,
+      notes: item.notes ?? "",
     });
 
-    setShowForm(false);
-  };
+    setError("");
+    setSuccess("");
+    setShowForm(true);
+  }
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
 
-  const updateStatus = (
-    no: string,
-    status: Exclude<WorkOrderStatus, "All">
-  ) => {
-    setWorkOrders((current) => {
-      const updated = current.map((order) =>
-        order.no === no
-          ? { ...order, status }
-          : order
+    try {
+      const qty = Number(form.quantity);
+      const customerId = form.customerId.trim();
+      const customerName = form.customerName.trim();
+
+      if (!form.salesOrderId) {
+        throw new Error("Please select a Sales Order.");
+      }
+
+      if (!customerId) {
+        throw new Error(
+          "Customer ID is missing. Please check the selected Sales Order."
+        );
+      }
+
+      if (!customerName) {
+        throw new Error("Customer name is required.");
+      }
+
+      if (!form.projectName.trim()) {
+        throw new Error("Project name is required.");
+      }
+
+      if (!form.productWork.trim()) {
+        throw new Error("Product / Work is required.");
+      }
+
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new Error("Quantity must be greater than zero.");
+      }
+
+      const payload = {
+        salesOrderId: form.salesOrderId,
+        customerId,
+        customerName,
+        projectName: form.projectName.trim(),
+        productWork: form.productWork.trim(),
+        quantity: qty,
+        unit: form.unit,
+        dueDate: form.dueDate || null,
+        assignedTeam: form.assignedTeam.trim() || null,
+        priority: form.priority,
+        status: form.status,
+        notes: form.notes.trim() || null,
+      };
+
+      const url = editingId
+        ? `${API}/work-orders/${encodeURIComponent(editingId)}`
+        : `${API}/work-orders`;
+
+      await responseData(
+        await fetch(url, {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
       );
 
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updated)
+      setSuccess(
+        editingId
+          ? "Work Order updated successfully."
+          : "Work Order created successfully."
       );
 
-      return updated;
-    });
-  };
+      setShowForm(false);
+      setEditingId(null);
+      setForm({ ...blank });
+      await loadOrders();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not save Work Order."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(item: WorkOrder) {
+    if (!window.confirm(`Delete ${item.workOrderNo}?`)) return;
+
+    setError("");
+    setSuccess("");
+
+    try {
+      await responseData(
+        await fetch(
+          `${API}/work-orders/${encodeURIComponent(item.id)}`,
+          { method: "DELETE" }
+        )
+      );
+
+      setSuccess("Work Order deleted successfully.");
+      await loadOrders();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not delete Work Order."
+      );
+    }
+  }
+
+  const count = (status: string) =>
+    orders.filter((o) => o.status === status).length;
 
   return (
     <AppShell title="Work Orders">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Production execution control
-          </p>
+      <main className="space-y-5 p-4 md:p-6">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs text-gray-500">
+              Production execution control
+            </p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Work Orders
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Create and track manufacturing work from confirmed sales.
+            </p>
+          </div>
 
-          <h2 className="text-2xl font-semibold">
-            Work Orders
-          </h2>
-        </div>
-
-        <Button onClick={() => setShowForm(true)}>
-          <Plus />
-          Create Work Order
-        </Button>
-      </div>
-
-      <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
-        <Flow
-          label="Draft"
-          count={String(
-            workOrders.filter(
-              (o) => o.status === "Draft"
-            ).length
-          )}
-          icon={ClipboardList}
-        />
-
-        <Flow
-          label="Approved"
-          count={String(
-            workOrders.filter(
-              (o) => o.status === "Approved"
-            ).length
-          )}
-          icon={CheckCircle2}
-          active
-        />
-
-        <Flow
-          label="In Production"
-          count={String(
-            workOrders.filter(
-              (o) => o.status === "In Production"
-            ).length
-          )}
-          icon={Package}
-          active
-        />
-
-        <Flow
-          label="Completed"
-          count={String(
-            workOrders.filter(
-              (o) => o.status === "Completed"
-            ).length
-          )}
-          icon={CheckCircle2}
-        />
-      </div>
-
-      {showForm && (
-        <section className="mb-5 rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                New production instruction
-              </p>
-
-              <h3 className="text-xl font-semibold">
-                Create Work Order
-              </h3>
-            </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
 
             <button
-              onClick={() => setShowForm(false)}
-              className="rounded-lg p-2 hover:bg-muted"
+              type="button"
+              onClick={createNew}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              <XCircle className="size-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field
-              label="Customer *"
-              value={form.customer}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  customer: value,
-                })
-              }
-              placeholder="Enter customer name"
-            />
-
-            <Field
-              label="Project / Site *"
-              value={form.project}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  project: value,
-                })
-              }
-              placeholder="Enter project or site"
-            />
-
-            <Field
-              label="Product / Work *"
-              value={form.product}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  product: value,
-                })
-              }
-              placeholder="Example: Modular Kitchen"
-            />
-
-            <Field
-              label="Quantity *"
-              type="number"
-              value={form.quantity}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  quantity: value,
-                })
-              }
-              placeholder="Enter quantity"
-            />
-
-            <Field
-              label="Start Date"
-              type="date"
-              value={form.startDate}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  startDate: value,
-                })
-              }
-            />
-
-            <Field
-              label="Expected Completion Date"
-              type="date"
-              value={form.dueDate}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  dueDate: value,
-                })
-              }
-            />
-
-            <Field
-              label="Assigned Team"
-              value={form.assignedTo}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  assignedTo: value,
-                })
-              }
-              placeholder="Production Team"
-            />
-
-            <Field
-              label="Notes"
-              value={form.notes}
-              onChange={(value) =>
-                setForm({
-                  ...form,
-                  notes: value,
-                })
-              }
-              placeholder="Additional instructions"
-            />
-          </div>
-
-          <div className="mt-5 flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowForm(false)}
-            >
-              Cancel
-            </Button>
-
-            <Button onClick={createWorkOrder}>
+              <Plus className="h-4 w-4" />
               Create Work Order
-            </Button>
-          </div>
-        </section>
-      )}
-
-      <section className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-        <div className="flex flex-wrap gap-2 border-b border-border p-4">
-          <div className="flex min-w-60 flex-1 items-center gap-2 rounded-lg border border-input px-3 py-2 text-sm">
-            <Search className="size-4 text-muted-foreground" />
-
-            <input
-              value={query}
-              onChange={(e) =>
-                setQuery(e.target.value)
-              }
-              placeholder="Search work order, customer or project..."
-              className="w-full bg-transparent outline-none"
-            />
-          </div>
-
-          {(
-            [
-              "All",
-              "Draft",
-              "Approved",
-              "In Production",
-              "Completed",
-              "Cancelled",
-            ] as WorkOrderStatus[]
-          ).map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={cn(
-                "rounded-lg border px-3 py-2 text-xs",
-                filter === status
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border hover:bg-muted"
-              )}
-            >
-              {status}
             </button>
+          </div>
+        </header>
+
+        {error && (
+          <div
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div
+            role="status"
+            className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+          >
+            {success}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {[
+            ["Draft", count("Draft")],
+            ["Approved", count("Approved")],
+            ["In Production", count("In Production")],
+            ["Completed", count("Completed")],
+          ].map(([label, value]) => (
+            <div key={String(label)} className="rounded-xl border bg-white p-4">
+              <p className="text-sm text-gray-500">{label}</p>
+              <p className="mt-2 text-2xl font-bold">{value}</p>
+            </div>
           ))}
         </div>
+        {showForm && (
+          <section className="rounded-xl border bg-white p-4 md:p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {editingId ? "Edit Work Order" : "Create Work Order"}
+              </h2>
+              <button
+                type="button"
+                aria-label="Close form"
+                onClick={() => setShowForm(false)}
+                className="rounded p-1 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="px-5 py-3">
-                  Work Order
-                </th>
-                <th className="py-3">
-                  Customer / Project
-                </th>
-                <th className="py-3">
-                  Product / Work
-                </th>
-                <th className="py-3 text-right">
-                  Qty
-                </th>
-                <th className="py-3">
-                  Due Date
-                </th>
-                <th className="py-3">
-                  Assigned Team
-                </th>
-                <th className="py-3">
-                  Status
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {shown.map((order) => (
-                <tr
-                  key={order.no}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-5 py-3">
-                    <p className="font-medium">
-                      {order.no}
-                    </p>
-
-                    <p className="text-xs text-muted-foreground">
-                      Production instruction
-                    </p>
-                  </td>
-
-                  <td className="py-3">
-                    <p>{order.customer}</p>
-
-                    <p className="text-xs text-muted-foreground">
-                      {order.project}
-                    </p>
-                  </td>
-
-                  <td className="py-3">
-                    {order.product}
-                  </td>
-
-                  <td className="py-3 text-right">
-                    {order.quantity}
-                  </td>
-
-                  <td className="py-3 text-muted-foreground">
-                    {order.dueDate}
-                  </td>
-
-                  <td className="py-3">
-                    {order.assignedTo}
-                  </td>
-
-                  <td className="py-3">
-                    <select
-                      value={order.status}
-                      onChange={(e) =>
-                        updateStatus(
-                          order.no,
-                          e.target.value as Exclude<
-                            WorkOrderStatus,
-                            "All"
-                          >
-                        )
-                      }
-                      className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                    >
-                      <option>Draft</option>
-                      <option>Approved</option>
-                      <option>In Production</option>
-                      <option>Completed</option>
-                      <option>Cancelled</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-
-              {shown.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="py-10 text-center text-muted-foreground"
+            <form onSubmit={save} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <label className="space-y-1 text-sm">
+                  <span>Sales Order *</span>
+                  <select
+                    required
+                    className={input}
+                    value={form.salesOrderId}
+                    onChange={(e) => chooseOrder(e.target.value)}
                   >
-                    No work orders found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                    <option value="">Select Sales Order</option>
+                    {salesOrders.map((so) => (
+                      <option key={so.id} value={so.id}>
+                        {so.orderNo || `SO-${so.id}`} —{" "}
+                        {so.customerName || "Customer"}
+                        {so.status ? ` (${so.status})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <Clock3 className="size-4" />
-        New work orders are created in Draft status.
-      </div>
-    </AppShell>
-  );
-}
+                <label className="space-y-1 text-sm">
+                  <span>Customer Name *</span>
+                  <input
+                    required
+                    readOnly
+                    className={`${input} bg-gray-100`}
+                    value={form.customerName}
+                    placeholder="Select a Sales Order first"
+                  />
+                </label>
 
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <label className="space-y-1.5">
-      <span className="text-sm font-medium">
-        {label}
-      </span>
+                <label className="space-y-1 text-sm">
+                  <span>Project Name *</span>
+                  <input
+                    required
+                    className={input}
+                    value={form.projectName}
+                    onChange={(e) => field("projectName", e.target.value)}
+                  />
+                </label>
 
-      <input
-        type={type}
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-      />
-    </label>
-  );
-}
+                <label className="space-y-1 text-sm md:col-span-2">
+                  <span>Product / Work *</span>
+                  <input
+                    required
+                    className={input}
+                    placeholder="Modular kitchen, wardrobe, TV unit..."
+                    value={form.productWork}
+                    onChange={(e) => field("productWork", e.target.value)}
+                  />
+                </label>
 
-function Flow({
-  label,
-  count,
-  icon: Icon,
-  active,
-}: {
-  label: string;
-  count: string;
-  icon: typeof ClipboardList;
-  active?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-      <span
-        className={cn(
-          "grid size-10 place-items-center rounded-lg",
-          active
-            ? "bg-primary/10 text-primary"
-            : "bg-muted text-muted-foreground"
+                <label className="space-y-1 text-sm">
+                  <span>Quantity *</span>
+                  <input
+                    required
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    className={input}
+                    value={form.quantity}
+                    onChange={(e) => field("quantity", e.target.value)}
+                  />
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span>Unit</span>
+                  <select
+                    className={input}
+                    value={form.unit}
+                    onChange={(e) => field("unit", e.target.value)}
+                  >
+                    {["Nos", "Set", "Sq.Ft", "Sq.M", "RFT", "Sheet"].map(
+                      (unit) => (
+                        <option key={unit} value={unit}>{unit}</option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span>Due Date</span>
+                  <input
+                    type="date"
+                    className={input}
+                    value={form.dueDate}
+                    onChange={(e) => field("dueDate", e.target.value)}
+                  />
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span>Assigned Team</span>
+                  <input
+                    className={input}
+                    placeholder="Production team / employee"
+                    value={form.assignedTeam}
+                    onChange={(e) => field("assignedTeam", e.target.value)}
+                  />
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span>Priority</span>
+                  <select
+                    className={input}
+                    value={form.priority}
+                    onChange={(e) => field("priority", e.target.value)}
+                  >
+                    {PRIORITIES.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span>Status</span>
+                  <select
+                    className={input}
+                    value={form.status}
+                    onChange={(e) => field("status", e.target.value)}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="block space-y-1 text-sm">
+                <span>Notes / Production Instructions</span>
+                <textarea
+                  rows={3}
+                  className={input}
+                  value={form.notes}
+                  onChange={(e) => field("notes", e.target.value)}
+                  placeholder="Material, finish, dimensions, installation instructions..."
+                />
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                      ? "Update Work Order"
+                      : "Save Work Order"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="rounded-lg border px-5 py-2 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </section>
         )}
-      >
-        <Icon className="size-5" />
-      </span>
 
-      <div>
-        <p className="text-xs text-muted-foreground">
-          {label}
-        </p>
+        {viewing && (
+          <section className="space-y-4 rounded-xl border bg-white p-4 md:p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                Work Order Details: {viewing.workOrderNo}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setViewing(null)}
+                aria-label="Close details"
+                className="rounded p-2 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-        <p className="tabular text-xl font-semibold">
-          {count}
-        </p>
-      </div>
-    </div>
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <p><strong>Customer:</strong> {viewing.customerName}</p>
+              <p><strong>Project:</strong> {viewing.projectName}</p>
+              <p><strong>Product / Work:</strong> {viewing.productWork}</p>
+              <p><strong>Quantity:</strong> {viewing.quantity} {viewing.unit}</p>
+              <p><strong>Due Date:</strong> {viewing.dueDate || "—"}</p>
+              <p><strong>Assigned Team:</strong> {viewing.assignedTeam || "—"}</p>
+              <p><strong>Priority:</strong> {viewing.priority}</p>
+              <p><strong>Status:</strong> {viewing.status}</p>
+              <p><strong>Sales Order ID:</strong> {viewing.salesOrderId || "—"}</p>
+            </div>
+
+            {viewing.notes && (
+              <p className="text-sm">
+                <strong>Notes:</strong> {viewing.notes}
+              </p>
+            )}
+          </section>
+        )}
+
+        <section className="overflow-hidden rounded-xl border bg-white">
+          <div className="flex flex-col gap-3 border-b p-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h2 className="font-semibold">Work Order Records</h2>
+              <p className="text-xs text-gray-500">{filtered.length} record(s)</p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <input
+                  className={`${input} pl-9 sm:w-72`}
+                  placeholder="Search order, customer, project..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              <select
+                className={input}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="All">All Statuses</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="p-6 text-sm text-gray-500">Loading Work Orders...</p>
+          ) : filtered.length === 0 ? (
+            <p className="p-6 text-sm text-gray-500">No Work Orders found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1050px] text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    {[
+                      "Work Order", "Customer / Project", "Product / Work",
+                      "Qty", "Due Date", "Assigned Team", "Priority",
+                      "Status", "Actions",
+                    ].map((heading) => (
+                      <th key={heading} className="p-3">{heading}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filtered.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="p-3 font-medium">{item.workOrderNo}</td>
+                      <td className="p-3">
+                        <div>{item.customerName}</div>
+                        <div className="text-xs text-gray-500">{item.projectName}</div>
+                      </td>
+                      <td className="p-3">{item.productWork}</td>
+                      <td className="p-3">{item.quantity} {item.unit}</td>
+                      <td className="p-3">{item.dueDate || "—"}</td>
+                      <td className="p-3">{item.assignedTeam || "—"}</td>
+                      <td className="p-3">{item.priority}</td>
+                      <td className="p-3">
+                        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs">
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            title="View"
+                            onClick={() => setViewing(item)}
+                            className="rounded p-2 hover:bg-gray-100"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Edit"
+                            onClick={() => edit(item)}
+                            className="rounded p-2 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Delete"
+                            onClick={() => void remove(item)}
+                            className="rounded p-2 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
+    </AppShell>
   );
 }

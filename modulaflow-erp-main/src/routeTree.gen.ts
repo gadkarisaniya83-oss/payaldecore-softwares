@@ -12,12 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as BomMaterialRequirementRouteImport } from './routes/bom-material-requirement'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as DispatchRouteImport } from './routes/dispatch'
 import { Route as EstimationRouteImport } from './routes/estimation'
 import { Route as InstallationRouteImport } from './routes/installation'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as InvoicingRouteImport } from './routes/invoicing'
+import { Route as LeadEnquiryRouteImport } from './routes/lead-enquiry'
 import { Route as MastersRouteImport } from './routes/masters'
 import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as ProductionRouteImport } from './routes/production'
@@ -26,6 +28,7 @@ import { Route as PurchaseRouteImport } from './routes/purchase'
 import { Route as QuotationsRouteImport } from './routes/quotations'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SalesOrdersRouteImport } from './routes/sales-orders'
+import { Route as SiteVisitMeasurementRouteImport } from './routes/site-visit-measurement'
 import { Route as VendorsRouteImport } from './routes/vendors'
 import { Route as WorkOrdersRouteImport } from './routes/work-orders'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -49,6 +52,11 @@ const AccountsRoute = AccountsRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BomMaterialRequirementRoute = BomMaterialRequirementRouteImport.update({
+  id: '/bom-material-requirement',
+  path: '/bom-material-requirement',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CrmRoute = CrmRouteImport.update({
@@ -79,6 +87,11 @@ const InventoryRoute = InventoryRouteImport.update({
 const InvoicingRoute = InvoicingRouteImport.update({
   id: '/invoicing',
   path: '/invoicing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadEnquiryRoute = LeadEnquiryRouteImport.update({
+  id: '/lead-enquiry',
+  path: '/lead-enquiry',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MastersRoute = MastersRouteImport.update({
@@ -119,6 +132,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const SalesOrdersRoute = SalesOrdersRouteImport.update({
   id: '/sales-orders',
   path: '/sales-orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteVisitMeasurementRoute = SiteVisitMeasurementRouteImport.update({
+  id: '/site-visit-measurement',
+  path: '/site-visit-measurement',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VendorsRoute = VendorsRouteImport.update({
@@ -171,12 +189,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
+  '/bom-material-requirement': typeof BomMaterialRequirementRoute
   '/crm': typeof CrmRoute
   '/dispatch': typeof DispatchRoute
   '/estimation': typeof EstimationRoute
   '/installation': typeof InstallationRoute
   '/inventory': typeof InventoryRoute
   '/invoicing': typeof InvoicingRoute
+  '/lead-enquiry': typeof LeadEnquiryRoute
   '/masters': typeof MastersRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/production': typeof ProductionRoute
@@ -185,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/quotations': typeof QuotationsRoute
   '/reports': typeof ReportsRoute
   '/sales-orders': typeof SalesOrdersRoute
+  '/site-visit-measurement': typeof SiteVisitMeasurementRoute
   '/vendors': typeof VendorsRoute
   '/work-orders': typeof WorkOrdersRoute
   '/admin/backup': typeof AdminBackupRoute
@@ -198,12 +219,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/bom-material-requirement': typeof BomMaterialRequirementRoute
   '/crm': typeof CrmRoute
   '/dispatch': typeof DispatchRoute
   '/estimation': typeof EstimationRoute
   '/installation': typeof InstallationRoute
   '/inventory': typeof InventoryRoute
   '/invoicing': typeof InvoicingRoute
+  '/lead-enquiry': typeof LeadEnquiryRoute
   '/masters': typeof MastersRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/production': typeof ProductionRoute
@@ -212,6 +235,7 @@ export interface FileRoutesByTo {
   '/quotations': typeof QuotationsRoute
   '/reports': typeof ReportsRoute
   '/sales-orders': typeof SalesOrdersRoute
+  '/site-visit-measurement': typeof SiteVisitMeasurementRoute
   '/vendors': typeof VendorsRoute
   '/work-orders': typeof WorkOrdersRoute
   '/admin/backup': typeof AdminBackupRoute
@@ -227,12 +251,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
+  '/bom-material-requirement': typeof BomMaterialRequirementRoute
   '/crm': typeof CrmRoute
   '/dispatch': typeof DispatchRoute
   '/estimation': typeof EstimationRoute
   '/installation': typeof InstallationRoute
   '/inventory': typeof InventoryRoute
   '/invoicing': typeof InvoicingRoute
+  '/lead-enquiry': typeof LeadEnquiryRoute
   '/masters': typeof MastersRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/production': typeof ProductionRoute
@@ -241,6 +267,7 @@ export interface FileRoutesById {
   '/quotations': typeof QuotationsRoute
   '/reports': typeof ReportsRoute
   '/sales-orders': typeof SalesOrdersRoute
+  '/site-visit-measurement': typeof SiteVisitMeasurementRoute
   '/vendors': typeof VendorsRoute
   '/work-orders': typeof WorkOrdersRoute
   '/admin/backup': typeof AdminBackupRoute
@@ -257,12 +284,14 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/admin'
+    | '/bom-material-requirement'
     | '/crm'
     | '/dispatch'
     | '/estimation'
     | '/installation'
     | '/inventory'
     | '/invoicing'
+    | '/lead-enquiry'
     | '/masters'
     | '/payments'
     | '/production'
@@ -271,6 +300,7 @@ export interface FileRouteTypes {
     | '/quotations'
     | '/reports'
     | '/sales-orders'
+    | '/site-visit-measurement'
     | '/vendors'
     | '/work-orders'
     | '/admin/backup'
@@ -284,12 +314,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
+    | '/bom-material-requirement'
     | '/crm'
     | '/dispatch'
     | '/estimation'
     | '/installation'
     | '/inventory'
     | '/invoicing'
+    | '/lead-enquiry'
     | '/masters'
     | '/payments'
     | '/production'
@@ -298,6 +330,7 @@ export interface FileRouteTypes {
     | '/quotations'
     | '/reports'
     | '/sales-orders'
+    | '/site-visit-measurement'
     | '/vendors'
     | '/work-orders'
     | '/admin/backup'
@@ -312,12 +345,14 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/admin'
+    | '/bom-material-requirement'
     | '/crm'
     | '/dispatch'
     | '/estimation'
     | '/installation'
     | '/inventory'
     | '/invoicing'
+    | '/lead-enquiry'
     | '/masters'
     | '/payments'
     | '/production'
@@ -326,6 +361,7 @@ export interface FileRouteTypes {
     | '/quotations'
     | '/reports'
     | '/sales-orders'
+    | '/site-visit-measurement'
     | '/vendors'
     | '/work-orders'
     | '/admin/backup'
@@ -341,12 +377,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
   AdminRoute: typeof AdminRouteWithChildren
+  BomMaterialRequirementRoute: typeof BomMaterialRequirementRoute
   CrmRoute: typeof CrmRoute
   DispatchRoute: typeof DispatchRoute
   EstimationRoute: typeof EstimationRoute
   InstallationRoute: typeof InstallationRoute
   InventoryRoute: typeof InventoryRoute
   InvoicingRoute: typeof InvoicingRoute
+  LeadEnquiryRoute: typeof LeadEnquiryRoute
   MastersRoute: typeof MastersRouteWithChildren
   PaymentsRoute: typeof PaymentsRoute
   ProductionRoute: typeof ProductionRoute
@@ -355,6 +393,7 @@ export interface RootRouteChildren {
   QuotationsRoute: typeof QuotationsRoute
   ReportsRoute: typeof ReportsRoute
   SalesOrdersRoute: typeof SalesOrdersRoute
+  SiteVisitMeasurementRoute: typeof SiteVisitMeasurementRoute
   VendorsRoute: typeof VendorsRoute
   WorkOrdersRoute: typeof WorkOrdersRoute
 }
@@ -380,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bom-material-requirement': {
+      id: '/bom-material-requirement'
+      path: '/bom-material-requirement'
+      fullPath: '/bom-material-requirement'
+      preLoaderRoute: typeof BomMaterialRequirementRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crm': {
@@ -422,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/invoicing'
       fullPath: '/invoicing'
       preLoaderRoute: typeof InvoicingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lead-enquiry': {
+      id: '/lead-enquiry'
+      path: '/lead-enquiry'
+      fullPath: '/lead-enquiry'
+      preLoaderRoute: typeof LeadEnquiryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/masters': {
@@ -478,6 +531,13 @@ declare module '@tanstack/react-router' {
       path: '/sales-orders'
       fullPath: '/sales-orders'
       preLoaderRoute: typeof SalesOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/site-visit-measurement': {
+      id: '/site-visit-measurement'
+      path: '/site-visit-measurement'
+      fullPath: '/site-visit-measurement'
+      preLoaderRoute: typeof SiteVisitMeasurementRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vendors': {
@@ -581,12 +641,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
   AdminRoute: AdminRouteWithChildren,
+  BomMaterialRequirementRoute: BomMaterialRequirementRoute,
   CrmRoute: CrmRoute,
   DispatchRoute: DispatchRoute,
   EstimationRoute: EstimationRoute,
   InstallationRoute: InstallationRoute,
   InventoryRoute: InventoryRoute,
   InvoicingRoute: InvoicingRoute,
+  LeadEnquiryRoute: LeadEnquiryRoute,
   MastersRoute: MastersRouteWithChildren,
   PaymentsRoute: PaymentsRoute,
   ProductionRoute: ProductionRoute,
@@ -595,6 +657,7 @@ const rootRouteChildren: RootRouteChildren = {
   QuotationsRoute: QuotationsRoute,
   ReportsRoute: ReportsRoute,
   SalesOrdersRoute: SalesOrdersRoute,
+  SiteVisitMeasurementRoute: SiteVisitMeasurementRoute,
   VendorsRoute: VendorsRoute,
   WorkOrdersRoute: WorkOrdersRoute,
 }
