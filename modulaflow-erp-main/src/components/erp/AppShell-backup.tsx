@@ -70,18 +70,16 @@ function Sidebar({ open }: { open: boolean }) {
       )}
     >
       <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
-        <div className="grid size-10 place-items-center rounded-md border-2 border-sidebar-primary font-serif text-lg font-bold text-sidebar-primary">
-          PD
-        </div>
-
-        <div className="leading-tight">
-          <p className="font-serif text-lg tracking-[0.18em] text-sidebar-primary">
-            PAYAL
-          </p>
-          <p className="font-serif text-xs tracking-[0.42em] text-sidebar-foreground/70">
-            DECOR
-          </p>
-        </div>
+<div className="flex h-20 items-center border-b border-sidebar-border px-4 py-2">
+  <img
+    src="/payal-decor-logo.png?v=2"
+    alt="Payal Decor Logo"
+    className="h-16 w-full object-contain"
+    onError={(e) => {
+      console.error("Payal Decor logo failed to load");
+    }}
+  />
+</div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">

@@ -73,11 +73,11 @@ function Sidebar({ open }: { open: boolean }) {
       )}
     >
       <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
-        <div className="flex h-16 w-full items-center border-b border-sidebar-border px-4 py-2">
+        <div className="flex h-20 items-center justify-center border-b border-sidebar-border px-4 py-3">
   <img
     src="/payal-decor-logo.png"
-    alt="Payal Decor Logo"
-    className="h-14 w-full object-contain object-left"
+    alt="Payal Decor"
+    className="max-h-14 w-full object-contain"
   />
 </div>
 </div>
