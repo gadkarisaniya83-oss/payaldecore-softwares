@@ -4,13 +4,16 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { isLoggedIn } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -89,9 +92,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Measurement-driven modular furniture ERP for projects, BOQ, production, inventory and GST invoicing.",
       },
       { property: "og:type", content: "website" },
+      {
+        property: "og:image",
+        content: "https://payaldecore-softwares-2.onrender.com/payal-decor-logo.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "twitter:image",
+        content: "https://payaldecore-softwares-2.onrender.com/payal-decor-logo.png",
+      },
     ],
-    
+
     links: [
       {
         rel: "stylesheet",
@@ -103,7 +114,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "/payal-decor-logo.png",
       },
     ],
-
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -125,13 +135,35 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Login nasel tar kontahi page dakhvat nahi, direct /login var pathvto.
+function AuthGate({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [status, setStatus] = useState<"checking" | "allowed" | "blocked">("checking");
+
+  useEffect(() => {
+    const loggedIn = isLoggedIn();
+    if (!loggedIn && pathname !== "/login") {
+      setStatus("blocked");
+      navigate({ to: "/login", replace: true });
+    } else {
+      setStatus("allowed");
+    }
+  }, [pathname, navigate]);
+
+  if (status !== "allowed") return null;
+  return <>{children}</>;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthGate>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </AuthGate>
     </QueryClientProvider>
   );
 }

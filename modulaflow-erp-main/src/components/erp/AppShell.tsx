@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
-  UserRoundPlus,
   FolderKanban,
   Calculator,
   FileText,
@@ -29,6 +28,7 @@ import {
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { UserMenu } from "@/components/UserMenu";
 
 interface NavItem {
   label: string;
@@ -39,27 +39,25 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/" },
   { label: "CRM", icon: Users, to: "/crm" },
-  { label: "Lead / Enquiry", icon: UserRoundPlus, to: "/lead-enquiry" },
-  { label: "Site Visit / Measurement", icon: UserRoundPlus, to: "/site-visit-measurement" },
+  { label: "Projects", icon: FolderKanban, to: "/projects" },
   { label: "Estimation & BOQ", icon: Calculator, to: "/estimation" },
   { label: "Quotations", icon: FileText, to: "/quotations" },
   { label: "Sales Orders", icon: ShoppingCart, to: "/sales-orders" },
-  { label: "Work Orders", icon: ClipboardList ,to:"/work-orders"},
-  { label: "BOM & Material Requirement", icon: Boxes, to: "/bom-material-requirement"},
+  { label: "Work Orders", icon: ClipboardList, to: "/work-orders" },
   { label: "Production", icon: Factory, to: "/production" },
   { label: "Inventory", icon: Boxes, to: "/inventory" },
   { label: "Purchase", icon: ShoppingBag, to: "/purchase" },
-  { label: "Vendors", icon: Users, to:"/vendors" },
-  { label: "Dispatch & Delivery", icon: Truck, to:"/dispatch" },
-  { label: "Installation", icon: Wrench, to:"/installation" },
+  { label: "Vendors", icon: Users },
+  { label: "Dispatch & Delivery", icon: Truck },
+  { label: "Installation", icon: Wrench },
   { label: "Invoicing", icon: ReceiptIndianRupee, to: "/invoicing" },
-  { label: "Payments", icon: Wallet, to: "/payments" },
-  { label: "Accounts", icon: BookOpen, to:"/accounts" },
-  { label: "Reports", icon: BarChart3, to: "/reports" },
-  { label: "Masters", icon: Boxes, to: "/masters" },
-  { label: "Admin", icon: Settings, to: "/admin" },
-  { label: "Projects", icon: FolderKanban, to: "/projects" },
+  { label: "Payments", icon: Wallet },
+  { label: "Accounts", icon: BookOpen },
+  { label: "Reports", icon: BarChart3 },
+  { label: "Masters", icon: Boxes },
+  { label: "Admin", icon: Settings },
 ];
+
 function Sidebar({ open }: { open: boolean }) {
   const pathname = useRouterState({
     select: (s) => s.location.pathname,
@@ -73,14 +71,17 @@ function Sidebar({ open }: { open: boolean }) {
       )}
     >
       <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
-        <div className="flex h-20 items-center justify-center border-b border-sidebar-border px-4 py-3">
-  <img
-    src="/payal-decor-logo.png"
-    alt="Payal Decor"
-    className="max-h-14 w-full object-contain"
-  />
-</div>
-</div>
+        <div className="flex h-20 items-center border-b border-sidebar-border px-4 py-2">
+          <img
+            src="/payal-decor-logo.png?v=2"
+            alt="Payal Decor Logo"
+            className="h-16 w-full object-contain"
+            onError={() => {
+              console.error("Payal Decor logo failed to load");
+            }}
+          />
+        </div>
+      </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">
         <p className="px-3 pb-2 pt-3 text-[10px] font-semibold tracking-[0.16em] text-sidebar-foreground/45">
@@ -95,9 +96,7 @@ function Sidebar({ open }: { open: boolean }) {
               <>
                 <item.icon className="size-[18px] shrink-0" />
 
-                <span className="flex-1 truncate">
-                  {item.label}
-                </span>
+                <span className="flex-1 truncate">{item.label}</span>
 
                 {!item.to && (
                   <span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-[9px] uppercase tracking-wide text-sidebar-foreground/50">
@@ -206,22 +205,11 @@ export function AppShell({
               <ChevronDown className="size-4 text-muted-foreground" />
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="grid size-9 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                RP
-              </div>
-
-              <div className="hidden leading-tight sm:block">
-                <p className="text-sm font-medium">Rahul Pawar</p>
-                <p className="text-xs text-muted-foreground">Admin</p>
-              </div>
-            </div>
+            <UserMenu />
           </div>
         </header>
 
-        <main className="p-4 lg:p-6">
-          {children}
-        </main>
+        <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );

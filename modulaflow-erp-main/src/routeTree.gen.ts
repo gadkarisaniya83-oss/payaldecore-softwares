@@ -20,6 +20,7 @@ import { Route as InstallationRouteImport } from './routes/installation'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as InvoicingRouteImport } from './routes/invoicing'
 import { Route as LeadEnquiryRouteImport } from './routes/lead-enquiry'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MastersRouteImport } from './routes/masters'
 import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as ProductionRouteImport } from './routes/production'
@@ -92,6 +93,11 @@ const InvoicingRoute = InvoicingRouteImport.update({
 const LeadEnquiryRoute = LeadEnquiryRouteImport.update({
   id: '/lead-enquiry',
   path: '/lead-enquiry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MastersRoute = MastersRouteImport.update({
@@ -197,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof InventoryRoute
   '/invoicing': typeof InvoicingRoute
   '/lead-enquiry': typeof LeadEnquiryRoute
+  '/login': typeof LoginRoute
   '/masters': typeof MastersRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/production': typeof ProductionRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof InventoryRoute
   '/invoicing': typeof InvoicingRoute
   '/lead-enquiry': typeof LeadEnquiryRoute
+  '/login': typeof LoginRoute
   '/masters': typeof MastersRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/production': typeof ProductionRoute
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/inventory': typeof InventoryRoute
   '/invoicing': typeof InvoicingRoute
   '/lead-enquiry': typeof LeadEnquiryRoute
+  '/login': typeof LoginRoute
   '/masters': typeof MastersRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/production': typeof ProductionRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoicing'
     | '/lead-enquiry'
+    | '/login'
     | '/masters'
     | '/payments'
     | '/production'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoicing'
     | '/lead-enquiry'
+    | '/login'
     | '/masters'
     | '/payments'
     | '/production'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoicing'
     | '/lead-enquiry'
+    | '/login'
     | '/masters'
     | '/payments'
     | '/production'
@@ -385,6 +397,7 @@ export interface RootRouteChildren {
   InventoryRoute: typeof InventoryRoute
   InvoicingRoute: typeof InvoicingRoute
   LeadEnquiryRoute: typeof LeadEnquiryRoute
+  LoginRoute: typeof LoginRoute
   MastersRoute: typeof MastersRouteWithChildren
   PaymentsRoute: typeof PaymentsRoute
   ProductionRoute: typeof ProductionRoute
@@ -475,6 +488,13 @@ declare module '@tanstack/react-router' {
       path: '/lead-enquiry'
       fullPath: '/lead-enquiry'
       preLoaderRoute: typeof LeadEnquiryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/masters': {
@@ -649,6 +669,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryRoute: InventoryRoute,
   InvoicingRoute: InvoicingRoute,
   LeadEnquiryRoute: LeadEnquiryRoute,
+  LoginRoute: LoginRoute,
   MastersRoute: MastersRouteWithChildren,
   PaymentsRoute: PaymentsRoute,
   ProductionRoute: ProductionRoute,
