@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, Package, Image as ImageIcon, Upload, X, Save, Pencil, Trash2, FileSpreadsheet,
+  Search, Package, Image as ImageIcon, Upload, X, Save, Pencil, Trash2, FileSpreadsheet, Plus,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -387,12 +387,14 @@ function Inventory() {
   const [editingSrNo, setEditingSrNo] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  // Add Product form fakt button click kelyavar dakhvaycha
+  const [showForm, setShowForm] = useState(false);
 
   const formRef = useRef<HTMLElement>(null);
   const formImageRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
-    // ---- products are stored in the shared database (server) ----
+  // ---- products are stored in the shared database (server) ----
   const syncedRef = useRef<Map<string, string>>(new Map());
   const [serverOk, setServerOk] = useState(false);
 
@@ -485,7 +487,7 @@ function Inventory() {
     }, 600);
     return () => clearTimeout(timer);
   }, [products, loaded, serverOk]);
-    
+
   const categories = useMemo(
     () => [...new Set(products.map((p) => p.category).filter(Boolean))],
     [products],
@@ -519,6 +521,22 @@ function Inventory() {
     setEditingSrNo(null);
     setError("");
     setMessage("");
+  };
+
+  // "Add Product" button: rikama form ughada
+  const openForm = () => {
+    clearForm();
+    setShowForm(true);
+    setTimeout(
+      () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      50,
+    );
+  };
+
+  // Cancel: form band kara
+  const closeForm = () => {
+    clearForm();
+    setShowForm(false);
   };
 
   const pickImage = async (file: File): Promise<string | null> => {
@@ -564,6 +582,7 @@ function Inventory() {
     setForm(EMPTY_FORM);
     setEditingSrNo(null);
     setError("");
+    setShowForm(false); // save zalyavar form band
   };
 
   const editProduct = (p: Product) => {
@@ -578,13 +597,17 @@ function Inventory() {
     setEditingSrNo(p.srNo);
     setError("");
     setMessage("");
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setShowForm(true); // Edit kelyavar form ughada
+    setTimeout(
+      () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      50,
+    );
   };
 
   const deleteProduct = (p: Product) => {
     if (!confirm(`"${p.itemName}" (${p.srNo}) delete karaycha?`)) return;
     setProducts((prev) => prev.filter((x) => x.srNo !== p.srNo));
-    if (editingSrNo === p.srNo) clearForm();
+    if (editingSrNo === p.srNo) closeForm();
   };
 
   const setRowImage = async (srNo: string, file: File) => {
@@ -768,161 +791,144 @@ function Inventory() {
 
   return (
     <AppShell title="Inventory">
-      {/* ADD / EDIT PRODUCT FORM */}
-      <section
-        ref={formRef}
-        className="scroll-mt-4 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
-      >
-        <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold">
-          <Package size={20} />
-          {editingSrNo ? `Edit Product - ${editingSrNo}` : "Add Product"}
-        </h2>
+      {/* ADD / EDIT PRODUCT FORM (fakt Add Product / Edit click kelyavar dista) */}
+      {showForm && (
+        <section
+          ref={formRef}
+          className="scroll-mt-4 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]"
+        >
+          <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold">
+            <Package size={20} />
+            {editingSrNo ? `Edit Product - ${editingSrNo}` : "Add Product"}
+          </h2>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <div>
-            <label className={labelCls} htmlFor="p-srno">Sr.No</label>
-            <input
-              id="p-srno"
-              value={form.srNo}
-              onChange={(e) => setField("srNo", e.target.value)}
-              placeholder="e.g. 1.10"
-              className={inputCls}
-            />
-          </div>
-
-          <div>
-            <label className={labelCls} htmlFor="p-name">Item Name</label>
-            <input
-              id="p-name"
-              value={form.itemName}
-              onChange={(e) => setField("itemName", e.target.value)}
-              placeholder="e.g. Elite C Side Leg - 600"
-              className={inputCls}
-            />
-          </div>
-
-          <div>
-            <label className={labelCls} htmlFor="p-dim">Dimension</label>
-            <input
-              id="p-dim"
-              value={form.dimension}
-              onChange={(e) => setField("dimension", e.target.value)}
-              placeholder="e.g. 590X725"
-              className={inputCls}
-            />
-          </div>
-
-          <div>
-            <label className={labelCls} htmlFor="p-price">Price (₹)</label>
-            <input
-              id="p-price"
-              type="number"
-              min={0}
-              value={form.price}
-              onChange={(e) => setField("price", e.target.value)}
-              placeholder="e.g. 2850"
-              className={inputCls}
-            />
-          </div>
-
-          <div>
-            <span className={labelCls}>Image</span>
-            <div className="flex h-12 items-center gap-3">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <label className={labelCls} htmlFor="p-srno">Sr.No</label>
               <input
-                ref={formImageRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file) return;
-                  const url = await pickImage(file);
-                  if (url) setField("image", url);
-                }}
+                id="p-srno"
+                value={form.srNo}
+                onChange={(e) => setField("srNo", e.target.value)}
+                placeholder="e.g. 1.10"
+                className={inputCls}
               />
-              <button
-                type="button"
-                onClick={() => formImageRef.current?.click()}
-                className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium hover:border-primary hover:text-primary"
-              >
-                <Upload size={16} />
-                {form.image ? "Change image" : "Choose image"}
-              </button>
+            </div>
 
-              {form.image && (
-                <div className="relative">
-                  <img
-                    src={form.image}
-                    alt="Preview"
-                    className="h-12 w-14 rounded-md border border-border bg-white object-contain"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setField("image", "")}
-                    aria-label="Remove image"
-                    className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              )}
+            <div>
+              <label className={labelCls} htmlFor="p-name">Item Name</label>
+              <input
+                id="p-name"
+                value={form.itemName}
+                onChange={(e) => setField("itemName", e.target.value)}
+                placeholder="e.g. Elite C Side Leg - 600"
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className={labelCls} htmlFor="p-dim">Dimension</label>
+              <input
+                id="p-dim"
+                value={form.dimension}
+                onChange={(e) => setField("dimension", e.target.value)}
+                placeholder="e.g. 590X725"
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label className={labelCls} htmlFor="p-price">Price (₹)</label>
+              <input
+                id="p-price"
+                type="number"
+                min={0}
+                value={form.price}
+                onChange={(e) => setField("price", e.target.value)}
+                placeholder="e.g. 2850"
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <span className={labelCls}>Image</span>
+              <div className="flex h-12 items-center gap-3">
+                <input
+                  ref={formImageRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    const url = await pickImage(file);
+                    if (url) setField("image", url);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => formImageRef.current?.click()}
+                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium hover:border-primary hover:text-primary"
+                >
+                  <Upload size={16} />
+                  {form.image ? "Change image" : "Choose image"}
+                </button>
+
+                {form.image && (
+                  <div className="relative">
+                    <img
+                      src={form.image}
+                      alt="Preview"
+                      className="h-12 w-14 rounded-md border border-border bg-white object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setField("image", "")}
+                      aria-label="Remove image"
+                      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-white"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={saveProduct}
-            className="inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            <Save size={18} />
-            {editingSrNo ? "Update Product" : "Save Product"}
-          </button>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={saveProduct}
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              <Save size={18} />
+              {editingSrNo ? "Update Product" : "Save Product"}
+            </button>
 
-          <button
-            type="button"
-            onClick={clearForm}
-            className="h-12 rounded-xl border border-border bg-background px-6 text-sm font-medium hover:bg-muted"
-          >
-            {editingSrNo ? "Cancel Edit" : "Clear Form"}
-          </button>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="h-12 rounded-xl border border-border bg-background px-6 text-sm font-medium hover:bg-muted"
+            >
+              Cancel
+            </button>
 
-          <input
-            ref={importRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (file) importExcel(file);
-            }}
-          />
+            {error && <span className="text-sm font-medium text-destructive">{error}</span>}
+          </div>
+        </section>
+      )}
 
-          <button
-            type="button"
-            onClick={() => importRef.current?.click()}
-            className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-background px-6 text-sm font-medium hover:border-primary hover:text-primary"
-          >
-            <Upload size={18} />
-            Import
-          </button>
-
-          <button
-            type="button"
-            onClick={exportExcel}
-            className="inline-flex h-12 items-center gap-2 rounded-xl bg-green-600 px-6 text-sm font-semibold text-white hover:bg-green-700"
-          >
-            <FileSpreadsheet size={18} />
-            Excel
-          </button>
-
-          {error && <span className="text-sm font-medium text-destructive">{error}</span>}
-          {!error && message && <span className="text-sm font-medium text-success">{message}</span>}
-        </div>
-      </section>
+      {/* Form band asatana error / success message ithe dista */}
+      {!showForm && (error || message) && (
+        <p
+          className={cn(
+            "mb-3 px-1 text-sm font-medium",
+            error ? "text-destructive" : "text-success",
+          )}
+        >
+          {error || message}
+        </p>
+      )}
 
       {/* PRODUCT CATALOGUE */}
       <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
@@ -937,6 +943,45 @@ function Inventory() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={openForm}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              <Plus size={18} />
+              Add Product
+            </button>
+
+            <input
+              ref={importRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) importExcel(file);
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => importRef.current?.click()}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium hover:border-primary hover:text-primary"
+            >
+              <Upload size={16} />
+              Import
+            </button>
+
+            <button
+              type="button"
+              onClick={exportExcel}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-semibold text-white hover:bg-green-700"
+            >
+              <FileSpreadsheet size={16} />
+              Excel
+            </button>
+
             <div className="relative w-72 max-w-full">
               <Search
                 size={18}
@@ -1045,7 +1090,6 @@ function Inventory() {
             </tbody>
           </table>
         </div>
-
       </section>
     </AppShell>
   );
