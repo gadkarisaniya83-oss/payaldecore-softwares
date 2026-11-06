@@ -297,9 +297,36 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-1">
-            <IconBadge icon={Bell} count={5} />
-            <IconBadge icon={Calendar} />
-            <IconBadge icon={MessageSquare} count={3} />
+            <IconBadge
+              icon={Bell}
+              title="Notifications"
+              items={[
+                "New quotation created",
+                "Payment received",
+                "Dispatch scheduled for tomorrow",
+                "Installation completed",
+                "Low stock alert in Inventory",
+              ]}
+            />
+            <IconBadge
+              icon={Calendar}
+              title="Calendar"
+              footer={`Today: ${new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })} — No events scheduled`}
+            />
+            <IconBadge
+              icon={MessageSquare}
+              title="Messages"
+              items={[
+                "Site visit reminder",
+                "Customer asked for revised estimate",
+                "Vendor sent new price list",
+              ]}
+            />
 
             <LanguageSwitcher />
 
@@ -320,20 +347,70 @@ export function AppShell({
 
 function IconBadge({
   icon: Icon,
-  count,
+  title,
+  items,
+  footer,
 }: {
   icon: LucideIcon;
-  count?: number;
+  title: string;
+  items?: string[];
+  footer?: string;
 }) {
-  return (
-    <button className="relative rounded-md p-2 text-muted-foreground hover:bg-muted">
-      <Icon className="size-5" />
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const count = items?.length ?? 0;
 
-      {count ? (
-        <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground">
-          {count}
-        </span>
-      ) : null}
-    </button>
+  // बाहेर क्लिक केल्यावर पॅनेल बंद होईल
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={title}
+        className="relative rounded-md p-2 text-muted-foreground hover:bg-muted"
+      >
+        <Icon className="size-5" />
+
+        {count ? (
+          <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground">
+            {count}
+          </span>
+        ) : null}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-72 rounded-lg border border-border bg-card shadow-lg">
+          <p className="border-b border-border px-4 py-2 text-sm font-semibold text-foreground">
+            {title}
+          </p>
+
+          {items && items.length > 0 ? (
+            <ul className="max-h-72 overflow-y-auto p-1">
+              {items.map((text) => (
+                <li
+                  key={text}
+                  className="rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  {text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              {footer ?? "Nothing new"}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
