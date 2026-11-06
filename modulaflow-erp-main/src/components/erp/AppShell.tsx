@@ -23,6 +23,7 @@ import {
   Search,
   ChevronDown,
   Menu,
+  Check,
   type LucideIcon,
 } from "lucide-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
@@ -330,10 +331,7 @@ export function AppShell({
 
             <LanguageSwitcher />
 
-            <div className="mx-2 hidden items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm lg:flex">
-              Payal Decor Pvt. Ltd.
-              <ChevronDown className="size-4 text-muted-foreground" />
-            </div>
+            <CompanySwitcher />
 
             <UserMenu />
           </div>
@@ -409,6 +407,69 @@ function IconBadge({
               {footer ?? "Nothing new"}
             </p>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const COMPANIES = ["Payal Decor Pvt. Ltd."];
+
+function CompanySwitcher() {
+  const [open, setOpen] = useState(false);
+  const [company, setCompany] = useState(COMPANIES[0]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // बाहेर क्लिक केल्यावर पॅनेल बंद होईल
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative mx-2 hidden lg:block">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+      >
+        {company}
+        <ChevronDown
+          className={cn(
+            "size-4 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-card shadow-lg">
+          <p className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Company
+          </p>
+
+          <ul className="p-1">
+            {COMPANIES.map((name) => (
+              <li key={name}>
+                <button
+                  onClick={() => {
+                    setCompany(name);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  {name}
+                  {name === company && (
+                    <Check className="size-4 text-muted-foreground" />
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
