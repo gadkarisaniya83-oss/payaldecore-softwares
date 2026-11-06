@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
@@ -25,7 +25,7 @@ import {
   Menu,
   type LucideIcon,
 } from "lucide-react";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import "@/i18n";
 
@@ -163,12 +163,52 @@ export function AppShell({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  // Search state
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // मोठ्या स्क्रीनवर सुरुवातीला साइडबार उघडा ठेवा
     if (window.innerWidth >= 1024) setOpen(true);
   }, []);
+
+  // Ctrl + K दाबल्यावर सर्च बॉक्समध्ये कर्सर जाईल
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // सर्च रिझल्ट: फक्त ज्या मॉड्युलला पेज आहे तेच
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? NAV.filter((item) => {
+        if (!item.to) return false;
+        const translated = t(`nav.${item.label}`, {
+          defaultValue: item.label,
+        }).toLowerCase();
+        return (
+          item.label.toLowerCase().includes(q) || translated.includes(q)
+        );
+      })
+    : [];
+
+  const goTo = (to: string) => {
+    navigate({ to });
+    setQuery("");
+    setSearchOpen(false);
+    searchRef.current?.blur();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,17 +236,64 @@ export function AppShell({
             {t(`nav.${title}`, { defaultValue: title })}
           </h1>
 
-          <div className="mx-auto hidden w-full max-w-md items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground md:flex">
-            <Search className="size-4" />
+          <div className="relative mx-auto hidden w-full max-w-md md:block">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+              <Search className="size-4" />
 
-            <input
-              placeholder={t("search", { defaultValue: "Search anything..." })}
-              className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
-            />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setSearchOpen(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && results[0]?.to) {
+                    goTo(results[0].to);
+                  }
+                  if (e.key === "Escape") {
+                    setQuery("");
+                    setSearchOpen(false);
+                    searchRef.current?.blur();
+                  }
+                }}
+                placeholder={t("search", {
+                  defaultValue: "Search anything...",
+                })}
+                className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
+              />
 
-            <kbd className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px]">
-              Ctrl + K
-            </kbd>
+              <kbd className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px]">
+                Ctrl + K
+              </kbd>
+            </div>
+
+            {searchOpen && q && (
+              <div
+                // क्लिक करताना input चा blur होऊ नये म्हणून
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-lg"
+              >
+                {results.length > 0 ? (
+                  results.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => item.to && goTo(item.to)}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                    >
+                      <item.icon className="size-4 shrink-0 text-muted-foreground" />
+                      {t(`nav.${item.label}`, { defaultValue: item.label })}
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">
+                    {t("noResults", { defaultValue: "No results found" })}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="ml-auto flex items-center gap-1">
