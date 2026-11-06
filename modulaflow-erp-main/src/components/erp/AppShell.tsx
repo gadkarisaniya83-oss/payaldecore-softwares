@@ -25,7 +25,7 @@ import {
   Menu,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import "@/i18n";
 
@@ -51,7 +51,7 @@ const NAV: NavItem[] = [
   { label: "Inventory", icon: Boxes, to: "/inventory" },
   { label: "Purchase", icon: ShoppingBag, to: "/purchase" },
   { label: "Vendors", icon: Users, to: "/vendors" },
-    { label: "Dispatch & Delivery", icon: Truck, to: "/dispatch" },
+  { label: "Dispatch & Delivery", icon: Truck, to: "/dispatch" },
   { label: "Installation", to: "/installation", icon: Wrench },
   { label: "Invoicing", icon: ReceiptIndianRupee, to: "/invoicing" },
   { label: "Payments", icon: Wallet },
@@ -70,22 +70,22 @@ function Sidebar({ open }: { open: boolean }) {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform",
         open ? "translate-x-0" : "-translate-x-full",
       )}
     >
       <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
-  <div className="flex h-20 items-center border-b border-sidebar-border px-4 py-2">
-    <img
-      src="/logo.png"
-      alt="Payal Decor Logo"
-      className="h-16 w-full object-contain"
-      onError={() => {
-        console.error("Payal Decor logo failed to load");
-      }}
-    />
-  </div>
-</div>
+        <div className="flex h-20 items-center border-b border-sidebar-border px-4 py-2">
+          <img
+            src="/logo.png"
+            alt="Payal Decor Logo"
+            className="h-16 w-full object-contain"
+            onError={() => {
+              console.error("Payal Decor logo failed to load");
+            }}
+          />
+        </div>
+      </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">
         <p className="px-3 pb-2 pt-3 text-[10px] font-semibold tracking-[0.16em] text-sidebar-foreground/45">
@@ -165,6 +165,11 @@ export function AppShell({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    // मोठ्या स्क्रीनवर सुरुवातीला साइडबार उघडा ठेवा
+    if (window.innerWidth >= 1024) setOpen(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar open={open} />
@@ -177,7 +182,7 @@ export function AppShell({
         />
       )}
 
-      <div className="lg:pl-60">
+      <div className={cn("transition-[padding] duration-200", open && "lg:pl-60")}>
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-card px-4 lg:px-6">
           <button
             onClick={() => setOpen((v) => !v)}
