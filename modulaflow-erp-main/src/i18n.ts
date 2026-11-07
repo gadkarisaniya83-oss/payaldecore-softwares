@@ -8,6 +8,7 @@ const resources = {
       nav: {
         Dashboard: "डॅशबोर्ड",
         CRM: "सीआरएम",
+        Directory: "डिरेक्टरी",
         Projects: "प्रकल्प",
         "Estimation & BOQ": "अंदाज व BOQ",
         Quotations: "कोटेशन",
@@ -93,6 +94,7 @@ const resources = {
       nav: {
         Dashboard: "डैशबोर्ड",
         CRM: "सीआरएम",
+        Directory: "डायरेक्टरी",
         Projects: "प्रोजेक्ट्स",
         "Estimation & BOQ": "अनुमान और BOQ",
         Quotations: "कोटेशन",

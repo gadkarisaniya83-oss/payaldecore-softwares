@@ -14,6 +14,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BomMaterialRequirementRouteImport } from './routes/bom-material-requirement'
 import { Route as CrmRouteImport } from './routes/crm'
+import { Route as DirectoryRouteImport } from './routes/directory'
 import { Route as DispatchRouteImport } from './routes/dispatch'
 import { Route as EstimatePreviewRouteImport } from './routes/estimate-preview'
 import { Route as EstimationRouteImport } from './routes/estimation'
@@ -65,6 +66,11 @@ const BomMaterialRequirementRoute = BomMaterialRequirementRouteImport.update({
 const CrmRoute = CrmRouteImport.update({
   id: '/crm',
   path: '/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectoryRoute = DirectoryRouteImport.update({
+  id: '/directory',
+  path: '/directory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DispatchRoute = DispatchRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/bom-material-requirement': typeof BomMaterialRequirementRoute
   '/crm': typeof CrmRoute
+  '/directory': typeof DirectoryRoute
   '/dispatch': typeof DispatchRoute
   '/estimate-preview': typeof EstimatePreviewRoute
   '/estimation': typeof EstimationRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/accounts': typeof AccountsRoute
   '/bom-material-requirement': typeof BomMaterialRequirementRoute
   '/crm': typeof CrmRoute
+  '/directory': typeof DirectoryRoute
   '/dispatch': typeof DispatchRoute
   '/estimate-preview': typeof EstimatePreviewRoute
   '/estimation': typeof EstimationRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/bom-material-requirement': typeof BomMaterialRequirementRoute
   '/crm': typeof CrmRoute
+  '/directory': typeof DirectoryRoute
   '/dispatch': typeof DispatchRoute
   '/estimate-preview': typeof EstimatePreviewRoute
   '/estimation': typeof EstimationRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/bom-material-requirement'
     | '/crm'
+    | '/directory'
     | '/dispatch'
     | '/estimate-preview'
     | '/estimation'
@@ -346,6 +356,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/bom-material-requirement'
     | '/crm'
+    | '/directory'
     | '/dispatch'
     | '/estimate-preview'
     | '/estimation'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/bom-material-requirement'
     | '/crm'
+    | '/directory'
     | '/dispatch'
     | '/estimate-preview'
     | '/estimation'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   BomMaterialRequirementRoute: typeof BomMaterialRequirementRoute
   CrmRoute: typeof CrmRoute
+  DirectoryRoute: typeof DirectoryRoute
   DispatchRoute: typeof DispatchRoute
   EstimatePreviewRoute: typeof EstimatePreviewRoute
   EstimationRoute: typeof EstimationRoute
@@ -472,6 +485,13 @@ declare module '@tanstack/react-router' {
       path: '/crm'
       fullPath: '/crm'
       preLoaderRoute: typeof CrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directory': {
+      id: '/directory'
+      path: '/directory'
+      fullPath: '/directory'
+      preLoaderRoute: typeof DirectoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dispatch': {
@@ -703,6 +723,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   BomMaterialRequirementRoute: BomMaterialRequirementRoute,
   CrmRoute: CrmRoute,
+  DirectoryRoute: DirectoryRoute,
   DispatchRoute: DispatchRoute,
   EstimatePreviewRoute: EstimatePreviewRoute,
   EstimationRoute: EstimationRoute,

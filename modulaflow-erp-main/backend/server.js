@@ -5467,6 +5467,125 @@ app.delete("/api/invoices/:id", async (req, res) => {
     res.status(500).json({ success: false, message: "Invoice could not be deleted." });
   }
 });
+// ======================================================
+// PARTNERS APIs (Directory module)
+// ======================================================
+
+function partnerText(value) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text || null;
+}
+
+app.get('/api/partners', async (req, res) => {
+  try {
+    const partners = await prisma.partner.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, partners });
+  } catch (error) {
+    console.error('❌ Get partners error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load partners' });
+  }
+});
+
+app.post('/api/partners', async (req, res) => {
+  try {
+    const b = req.body;
+
+    if (!partnerText(b.name)) {
+      return res.status(400).json({ success: false, message: 'Partner name is required' });
+    }
+
+    const partner = await prisma.partner.create({
+      data: {
+        name: partnerText(b.name),
+        company: partnerText(b.company),
+        phone: partnerText(b.phone),
+        email: partnerText(b.email),
+        address: partnerText(b.address),
+        notes: partnerText(b.notes),
+        status: b.status === 'Inactive' ? 'Inactive' : 'Active'
+      }
+    });
+
+    res.status(201).json({ success: true, partner });
+  } catch (error) {
+    console.error('❌ Create partner error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create partner' });
+  }
+});
+
+app.put('/api/partners/:id', async (req, res) => {
+  try {
+    const b = req.body;
+    const data = {};
+
+    if (b.name !== undefined) {
+      if (!partnerText(b.name)) {
+        return res.status(400).json({ success: false, message: 'Name cannot be empty' });
+      }
+      data.name = partnerText(b.name);
+    }
+
+    for (const f of ['company', 'phone', 'email', 'address', 'notes']) {
+      if (b[f] !== undefined) data[f] = partnerText(b[f]);
+    }
+
+    if (b.status !== undefined) {
+      data.status = b.status === 'Inactive' ? 'Inactive' : 'Active';
+    }
+
+    const partner = await prisma.partner.update({
+      where: { id: req.params.id },
+      data
+    });
+
+    res.json({ success: true, partner });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, message: 'Partner not found' });
+    }
+    console.error('❌ Update partner error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update partner' });
+  }
+});
+
+app.delete('/api/partners/:id', async (req, res) => {
+  try {
+    await prisma.partner.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ success: false, message: 'Partner not found' });
+    }
+    console.error('❌ Delete partner error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete partner' });
+  }
+});
+
+// Render वर table नसेल तर बनवतो
+async function ensurePartnerTable() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "partners" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "company" TEXT,
+        "phone" TEXT,
+        "email" TEXT,
+        "address" TEXT,
+        "notes" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'Active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "partners_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    console.log('✅ Partners table is ready');
+  } catch (error) {
+    console.error('❌ Could not create partners table:', error);
+  }
+}
 
 /* ===== END ESTIMATE DOCUMENT APIs ===== */
 
@@ -5488,7 +5607,8 @@ app.listen(PORT, () => {
 ensureInstallationTable();  
 ensureDispatchTable();
 ensureInstallationTable();
-ensureEstimateDocTable();  
+ensureEstimateDocTable(); 
+ensurePartnerTable(); 
   // ======================================================
 // DISPATCH TABLE: backend सुरू होताना table नसेल तर बनवतो
 // ======================================================

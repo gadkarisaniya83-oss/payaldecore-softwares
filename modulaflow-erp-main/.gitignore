@@ -5,4 +5,4 @@ dist/
 .output/
 .wrangler/
 .tanstack/
-.env
+.env*.zip

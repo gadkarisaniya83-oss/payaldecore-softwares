@@ -2,6 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
+  Contact,
   FolderKanban,
   Calculator,
   FileText,
@@ -43,6 +44,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/" },
   { label: "CRM", icon: Users, to: "/crm" },
+  { label: "Directory", icon: Contact, to: "/directory" },
   { label: "Projects", icon: FolderKanban, to: "/projects" },
   { label: "Estimation & BOQ", icon: Calculator, to: "/estimation" },
   { label: "Quotations", icon: FileText, to: "/quotations" },
